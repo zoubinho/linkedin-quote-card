@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orin — Quote Card Builder</title>
+
+<!-- Inter (fallbacks: Helvetica Neue, Arial, sans-serif). To use Proxima Nova instead,
+     either click the font toggle in the toolbar or change --card-font in :root below. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+  :root{
+    /* Swap this one line to Proxima Nova once you have it loaded */
+    --card-font: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:#f0f1f3;
+    font-family: 'Inter','Helvetica Neue',Arial,sans-serif;
+    color:#111;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    padding:20px 16px 60px;
+  }
+
+  /* ---------- Toolbar (NOT part of the exported image) ---------- */
+  .toolbar{
+    max-width:1080px; margin:0 auto 18px; background:#ffffff;
+    border:1px solid #e5e7eb; border-radius:14px; padding:14px 16px;
+    display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center;
+    box-shadow:0 1px 2px rgba(16,24,40,.04);
+  }
+  .toolbar .tb-note{ width:100%; font-size:12px; color:#9aa1ac; margin-bottom:2px; letter-spacing:.02em; }
+  .tb-group{ display:flex; align-items:center; gap:8px; font-size:13px; color:#374151; }
+  .tb-group label{ font-weight:600; color:#4b5563; }
+  .tb-btn{
+    font:inherit; font-size:13px; font-weight:600; color:#374151; cursor:pointer;
+    background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; padding:7px 12px;
+  }
+  .tb-btn:hover{ background:#eceef1; }
+  .tb-btn.primary{ background:#0f0f0f; color:#fff; border-color:#0f0f0f; }
+  .tb-btn.primary:hover{ background:#000; }
+  .tb-file{ font-size:12px; color:#6b7280; }
+  .tb-file::-webkit-file-upload-button{
+    font:inherit; font-size:12px; font-weight:600; color:#374151; cursor:pointer;
+    background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; padding:6px 10px; margin-right:8px;
+  }
+
+  /* ---------- Preview stage (scales the fixed 1080 card to fit) ---------- */
+  #stageWrap{ width:100%; display:flex; justify-content:center; }
+  #stage{ transform-origin: top left; }
+
+  /* ============================================================
+     THE CARD — fixed 1080 x 1080. This is what gets exported.
+     ============================================================ */
+  #card{
+    width:1080px; height:1080px; background:#FFFFFF;
+    padding:64px; display:flex; flex-direction:column; overflow:hidden;
+    font-family: var(--card-font);
+  }
+
+  /* 1) Header row */
+  .header{ display:flex; align-items:center; }
+
+  .avatar{
+    width:72px; height:72px; border-radius:50%; flex:0 0 72px;
+    background:linear-gradient(135deg,#FF8A3D 0%, #FF5C7A 100%); /* warm orange -> pink ring */
+    padding:2px;
+  }
+  .avatar-inner{
+    width:100%; height:100%; border-radius:50%; overflow:hidden;
+    background:#ECEEF1; display:flex; align-items:center; justify-content:center;
+  }
+  .avatar-inner .ph{ font-size:9px; font-weight:600; color:#9aa1ac; letter-spacing:.04em; }
+  .avatar-inner img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+  .identity{ margin-left:16px; display:flex; flex-direction:column; justify-content:center; }
+  .name-row{ display:flex; align-items:center; gap:8px; }
+  .name{ font-size:30px; font-weight:700; color:#0F0F0F; line-height:1; }
+
+  .badge{
+    width:22px; height:22px; flex:0 0 22px; display:flex; align-items:center; justify-content:center;
+  }
+  /* LinkedIn 'in' */
+  .badge.linkedin{ background:#0A66C2; border-radius:5px; }
+  .badge.linkedin span{ color:#fff; font-size:12px; font-weight:700; line-height:1; letter-spacing:-.02em; }
+  /* X verified blue check */
+  .badge.x{ background:#1D9BF0; border-radius:50%; }
+  .badge.x svg{ width:14px; height:14px; }
+
+  .handle{ font-size:22px; font-weight:500; color:#6B7280; line-height:1.2; margin-top:6px; }
+
+  /* 3) Headline */
+  .headline{
+    margin-top:40px;                 /* spacer */
+    font-size:54px; font-weight:500; color:#0F0F0F; line-height:1.15;
+    width:100%; outline:none;
+    word-break:break-word;
+  }
+  .headline:focus{ box-shadow: inset 0 0 0 2px rgba(10,102,194,.25); border-radius:6px; }
+
+  /* 5) Main visual card */
+  .visual{
+    margin-top:40px;                 /* spacer */
+    flex:1 1 auto; min-height:0;
+    border:1px solid #E5E7EB; border-radius:16px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
+    display:flex; flex-direction:column; background:#fff;
+  }
+  .image-area{
+    flex:1 1 auto; min-height:260px; background:#F3F4F6;
+    display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .image-area .ph{ font-size:18px; font-weight:500; color:#9aa1ac; letter-spacing:.01em; }
+  .image-area img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+  .caption{ font-size:16px; color:#6B7280; padding:14px 18px 16px; line-height:1.35; }
+  .caption[hidden]{ display:none; }
+</style>
+</head>
+<body>
+
+  <!-- Toolbar: controls only, never captured in the image -->
+  <div class="toolbar">
+    <div class="tb-note">Controls — not part of the image. The headline is editable directly on the card.</div>
+
+    <div class="tb-group">
+      <label>Avatar</label>
+      <input class="tb-file" type="file" id="avatarInput" accept="image/*" />
+    </div>
+
+    <div class="tb-group">
+      <label>Main image</label>
+      <input class="tb-file" type="file" id="mainInput" accept="image/*" />
+    </div>
+
+    <div class="tb-group">
+      <label>Badge</label>
+      <button class="tb-btn" id="badgeToggle" type="button">LinkedIn</button>
+    </div>
+
+    <div class="tb-group">
+      <label>Font</label>
+      <button class="tb-btn" id="fontToggle" type="button">Inter</button>
+    </div>
+
+    <div class="tb-group" style="margin-left:auto;">
+      <button class="tb-btn primary" id="downloadBtn" type="button">Download 1080×1080 PNG</button>
+    </div>
+  </div>
+
+  <div id="stageWrap">
+    <div id="stage">
+      <!-- ================= EXPORTED CARD ================= -->
+      <div id="card">
+        <!-- Header -->
+        <div class="header">
+          <div class="avatar">
+            <div class="avatar-inner" id="avatarInner">
+              <span class="ph">AVATAR</span>
+            </div>
+          </div>
+          <div class="identity">
+            <div class="name-row">
+              <div class="name">Alexandre Alesi</div>
+              <div class="badge linkedin" id="badge"><span>in</span></div>
+            </div>
+            <div class="handle">@alexandre.alesi</div>
+          </div>
+        </div>
+
+        <!-- Headline (editable) -->
+        <div class="headline" id="headline" contenteditable="true" spellcheck="false">Turns out, the bottleneck was never the model — it was the three logins between the operator and the answer.</div>
+
+        <!-- Main visual card -->
+        <div class="visual">
+          <div class="image-area" id="imageArea">
+            <span class="ph">MAIN IMAGE — drop chart/visual here</span>
+          </div>
+          <!-- caption hidden because SOURCE is blank; fill text + remove [hidden] to show -->
+          <div class="caption" id="caption" hidden></div>
+        </div>
+      </div>
+      <!-- =============== /EXPORTED CARD =============== -->
+    </div>
+  </div>
+
+<script>
+  const card = document.getElementById('card');
+  const stage = document.getElementById('stage');
+  const stageWrap = document.getElementById('stageWrap');
+
+  /* ---- Fit the 1080 card into the available width for preview ---- */
+  function fit(){
+    const avail = Math.min(stageWrap.clientWidth, 1080);
+    const scale = Math.min(1, avail / 1080);
+    stage.style.transform = 'scale(' + scale + ')';
+    // reserve the scaled footprint so the page lays out correctly
+    stage.style.width = '1080px';
+    stage.style.height = '1080px';
+    stageWrap.style.height = (1080 * scale) + 'px';
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('load', fit);
+  fit();
+
+  /* ---- Image uploads (in-memory object URLs; no storage) ---- */
+  function loadImage(input, mountFn){
+    input.addEventListener('change', e=>{
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      const url = URL.createObjectURL(file);
+      mountFn(url);
+    });
+  }
+  loadImage(document.getElementById('avatarInput'), (url)=>{
+    document.getElementById('avatarInner').innerHTML = '<img src="'+url+'" alt="avatar"/>';
+  });
+  loadImage(document.getElementById('mainInput'), (url)=>{
+    document.getElementById('imageArea').innerHTML = '<img src="'+url+'" alt="main visual"/>';
+  });
+
+  /* ---- Badge toggle: LinkedIn 'in'  <->  X blue check ---- */
+  const badge = document.getElementById('badge');
+  const badgeToggle = document.getElementById('badgeToggle');
+  const X_CHECK = '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  let isX = false;
+  badgeToggle.addEventListener('click', ()=>{
+    isX = !isX;
+    if(isX){
+      badge.className = 'badge x';
+      badge.innerHTML = X_CHECK;
+      badgeToggle.textContent = 'X';
+    }else{
+      badge.className = 'badge linkedin';
+      badge.innerHTML = '<span>in</span>';
+      badgeToggle.textContent = 'LinkedIn';
+    }
+  });
+
+  /* ---- Font toggle: Inter <-> Proxima Nova (needs the font available to render) ---- */
+  const fontToggle = document.getElementById('fontToggle');
+  let proxima = false;
+  fontToggle.addEventListener('click', ()=>{
+    proxima = !proxima;
+    document.documentElement.style.setProperty('--card-font',
+      proxima ? "'Proxima Nova','Inter','Helvetica Neue',Arial,sans-serif"
+              : "'Inter','Helvetica Neue',Arial,sans-serif");
+    fontToggle.textContent = proxima ? 'Proxima Nova' : 'Inter';
+  });
+
+  /* ---- Export exactly 1080×1080 PNG ---- */
+  const downloadBtn = document.getElementById('downloadBtn');
+  downloadBtn.addEventListener('click', async ()=>{
+    const prevTransform = stage.style.transform;
+    const prevLabel = downloadBtn.textContent;
+    downloadBtn.textContent = 'Rendering…';
+    // capture at true size, unscaled
+    stage.style.transform = 'none';
+    document.activeElement && document.activeElement.blur();
+    try{
+      if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      const canvas = await html2canvas(card, {
+        width:1080, height:1080, scale:1,
+        backgroundColor:'#FFFFFF', useCORS:true, logging:false
+      });
+      const link = document.createElement('a');
+      link.download = 'orin-launch-card-1080.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }catch(err){
+      alert('Export failed: ' + err.message);
+    }finally{
+      stage.style.transform = prevTransform;
+      downloadBtn.textContent = prevLabel;
+      fit();
+    }
+  });
+</script>
+</body>
+</html>
