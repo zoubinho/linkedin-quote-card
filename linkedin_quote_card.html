@@ -5,24 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Linkedin — Quote Card Builder</title>
 
-<!-- Inter (fallbacks: Helvetica Neue, Arial, sans-serif). To use Proxima Nova instead,
-     either click the font toggle in the toolbar or change --card-font in :root below. -->
+<!-- Professional typefaces (deliberately NOT the AI-default sans set).
+     All five load from Google Fonts and are switchable via the toolbar dropdown. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
   :root{
-    /* Swap this one line to Proxima Nova once you have it loaded */
-    --card-font: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    /* Default card typeface — switch it live from the toolbar dropdown. */
+    --card-font: 'Libre Franklin', 'Helvetica Neue', Arial, sans-serif;
+    --ui-font: 'Libre Franklin', 'Helvetica Neue', Arial, sans-serif;
   }
 
   *{ box-sizing: border-box; }
   html,body{ margin:0; padding:0; }
   body{
     background:#f0f1f3;
-    font-family: 'Inter','Helvetica Neue',Arial,sans-serif;
+    font-family: var(--ui-font);
     color:#111;
     -webkit-font-smoothing:antialiased;
     text-rendering:optimizeLegibility;
@@ -33,7 +34,7 @@
   .toolbar{
     max-width:1080px; margin:0 auto 18px; background:#ffffff;
     border:1px solid #e5e7eb; border-radius:14px; padding:14px 16px;
-    display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center;
+    display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center;
     box-shadow:0 1px 2px rgba(16,24,40,.04);
   }
   .toolbar .tb-note{ width:100%; font-size:12px; color:#9aa1ac; margin-bottom:2px; letter-spacing:.02em; }
@@ -46,11 +47,20 @@
   .tb-btn:hover{ background:#eceef1; }
   .tb-btn.primary{ background:#0f0f0f; color:#fff; border-color:#0f0f0f; }
   .tb-btn.primary:hover{ background:#000; }
-  .tb-file{ font-size:12px; color:#6b7280; }
+  .tb-btn.ghost{ background:transparent; border-color:#e5e7eb; color:#9aa1ac; padding:7px 10px; }
+  .tb-btn.ghost:hover{ background:#f3f4f6; color:#4b5563; }
+  .tb-input, .tb-select{
+    font:inherit; font-size:13px; color:#374151;
+    background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:7px 10px;
+  }
+  .tb-input{ width:180px; }
+  .tb-input:focus, .tb-select:focus{ outline:none; border-color:#0A66C2; box-shadow:0 0 0 3px rgba(10,102,194,.12); }
+  .tb-file{ font-size:12px; color:#6b7280; max-width:210px; }
   .tb-file::-webkit-file-upload-button{
     font:inherit; font-size:12px; font-weight:600; color:#374151; cursor:pointer;
     background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; padding:6px 10px; margin-right:8px;
   }
+  .tb-opt{ font-size:11px; color:#9aa1ac; font-weight:500; }
 
   /* ---------- Preview stage (scales the fixed 1080 card to fit) ---------- */
   #stageWrap{ width:100%; display:flex; justify-content:center; }
@@ -68,17 +78,23 @@
   /* 1) Header row */
   .header{ display:flex; align-items:center; }
 
+  /* Avatar: gradient ring -> 1.5px white separator -> circular photo */
   .avatar{
     width:72px; height:72px; border-radius:50%; flex:0 0 72px;
     background:linear-gradient(135deg,#FF8A3D 0%, #FF5C7A 100%); /* warm orange -> pink ring */
-    padding:2px;
+    padding:2.5px;                 /* ring thickness */
   }
   .avatar-inner{
+    width:100%; height:100%; border-radius:50%;
+    background:#FFFFFF;            /* the white separation between ring and photo */
+    padding:1.5px;                 /* <-- 1.5px white gap */
+  }
+  .avatar-photo{
     width:100%; height:100%; border-radius:50%; overflow:hidden;
     background:#ECEEF1; display:flex; align-items:center; justify-content:center;
   }
-  .avatar-inner .ph{ font-size:9px; font-weight:600; color:#9aa1ac; letter-spacing:.04em; }
-  .avatar-inner img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .avatar-photo .ph{ font-size:9px; font-weight:600; color:#9aa1ac; letter-spacing:.04em; }
+  .avatar-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
 
   .identity{ margin-left:16px; display:flex; flex-direction:column; justify-content:center; }
   .name-row{ display:flex; align-items:center; gap:8px; }
@@ -105,7 +121,7 @@
   }
   .headline:focus{ box-shadow: inset 0 0 0 2px rgba(10,102,194,.25); border-radius:6px; }
 
-  /* 5) Main visual card */
+  /* 5) Main visual card (OPTIONAL) */
   .visual{
     margin-top:40px;                 /* spacer */
     flex:1 1 auto; min-height:0;
@@ -122,6 +138,11 @@
 
   .caption{ font-size:16px; color:#6B7280; padding:14px 18px 16px; line-height:1.35; }
   .caption[hidden]{ display:none; }
+
+  /* Text-only mode: no main image -> hide the visual card and
+     vertically center the header + headline as a group. */
+  #card.no-image .visual{ display:none; }
+  #card.no-image{ justify-content:center; }
 </style>
 </head>
 <body>
@@ -131,13 +152,24 @@
     <div class="tb-note">Controls — not part of the image. The headline is editable directly on the card.</div>
 
     <div class="tb-group">
-      <label>Avatar</label>
-      <input class="tb-file" type="file" id="avatarInput" accept="image/*" />
+      <label for="nameInput">Name</label>
+      <input class="tb-input" type="text" id="nameInput" value="Alexandre Alesi" />
     </div>
 
     <div class="tb-group">
-      <label>Main image</label>
-      <input class="tb-file" type="file" id="mainInput" accept="image/*" />
+      <label for="handleInput">Handle</label>
+      <input class="tb-input" type="text" id="handleInput" value="@alexandre.alesi" />
+    </div>
+
+    <div class="tb-group">
+      <label for="fontSelect">Font</label>
+      <select class="tb-select" id="fontSelect">
+        <option value="'Libre Franklin'">Libre Franklin</option>
+        <option value="'IBM Plex Sans'">IBM Plex Sans</option>
+        <option value="'Source Sans 3'">Source Sans 3</option>
+        <option value="'Work Sans'">Work Sans</option>
+        <option value="'Public Sans'">Public Sans</option>
+      </select>
     </div>
 
     <div class="tb-group">
@@ -146,8 +178,16 @@
     </div>
 
     <div class="tb-group">
-      <label>Font</label>
-      <button class="tb-btn" id="fontToggle" type="button">Inter</button>
+      <label for="avatarInput">Avatar</label>
+      <input class="tb-file" type="file" id="avatarInput" accept="image/*" />
+      <button class="tb-btn ghost" id="avatarClear" type="button">Clear</button>
+    </div>
+
+    <div class="tb-group">
+      <label for="mainInput">Main image</label>
+      <span class="tb-opt">(optional)</span>
+      <input class="tb-file" type="file" id="mainInput" accept="image/*" />
+      <button class="tb-btn ghost" id="mainClear" type="button">Clear</button>
     </div>
 
     <div class="tb-group" style="margin-left:auto;">
@@ -158,27 +198,30 @@
   <div id="stageWrap">
     <div id="stage">
       <!-- ================= EXPORTED CARD ================= -->
-      <div id="card">
+      <!-- starts in text-only mode until a main image is added -->
+      <div id="card" class="no-image">
         <!-- Header -->
         <div class="header">
           <div class="avatar">
-            <div class="avatar-inner" id="avatarInner">
-              <span class="ph">AVATAR</span>
+            <div class="avatar-inner">
+              <div class="avatar-photo" id="avatarPhoto">
+                <span class="ph">AVATAR</span>
+              </div>
             </div>
           </div>
           <div class="identity">
             <div class="name-row">
-              <div class="name">Alexandre Alesi</div>
+              <div class="name" id="name">Alexandre Alesi</div>
               <div class="badge linkedin" id="badge"><span>in</span></div>
             </div>
-            <div class="handle">@alexandre.alesi</div>
+            <div class="handle" id="handle">@alexandre.alesi</div>
           </div>
         </div>
 
         <!-- Headline (editable) -->
         <div class="headline" id="headline" contenteditable="true" spellcheck="false">Turns out, the bottleneck was never the model — it was the three logins between the operator and the answer.</div>
 
-        <!-- Main visual card -->
+        <!-- Main visual card (OPTIONAL — hidden until an image is added) -->
         <div class="visual">
           <div class="image-area" id="imageArea">
             <span class="ph">MAIN IMAGE — drop chart/visual here</span>
@@ -210,6 +253,18 @@
   window.addEventListener('load', fit);
   fit();
 
+  /* ---- Name & handle: customizable from the toolbar ---- */
+  const nameInput = document.getElementById('nameInput');
+  const handleInput = document.getElementById('handleInput');
+  const nameEl = document.getElementById('name');
+  const handleEl = document.getElementById('handle');
+  nameInput.addEventListener('input', ()=>{ nameEl.textContent = nameInput.value || ' '; });
+  handleInput.addEventListener('input', ()=>{ handleEl.textContent = handleInput.value || ' '; });
+
+  /* ---- Main image is OPTIONAL: text-only card when absent ---- */
+  let hasMainImage = false;
+  function updateImageState(){ card.classList.toggle('no-image', !hasMainImage); }
+
   /* ---- Image uploads (in-memory object URLs; no storage) ---- */
   function loadImage(input, mountFn){
     input.addEventListener('change', e=>{
@@ -220,10 +275,24 @@
     });
   }
   loadImage(document.getElementById('avatarInput'), (url)=>{
-    document.getElementById('avatarInner').innerHTML = '<img src="'+url+'" alt="avatar"/>';
+    document.getElementById('avatarPhoto').innerHTML = '<img src="'+url+'" alt="avatar"/>';
   });
   loadImage(document.getElementById('mainInput'), (url)=>{
     document.getElementById('imageArea').innerHTML = '<img src="'+url+'" alt="main visual"/>';
+    hasMainImage = true;
+    updateImageState();
+  });
+
+  /* ---- Clear buttons ---- */
+  document.getElementById('avatarClear').addEventListener('click', ()=>{
+    document.getElementById('avatarInput').value = '';
+    document.getElementById('avatarPhoto').innerHTML = '<span class="ph">AVATAR</span>';
+  });
+  document.getElementById('mainClear').addEventListener('click', ()=>{
+    document.getElementById('mainInput').value = '';
+    document.getElementById('imageArea').innerHTML = '<span class="ph">MAIN IMAGE — drop chart/visual here</span>';
+    hasMainImage = false;
+    updateImageState();
   });
 
   /* ---- Badge toggle: LinkedIn 'in'  <->  X blue check ---- */
@@ -244,16 +313,15 @@
     }
   });
 
-  /* ---- Font toggle: Inter <-> Proxima Nova (needs the font available to render) ---- */
-  const fontToggle = document.getElementById('fontToggle');
-  let proxima = false;
-  fontToggle.addEventListener('click', ()=>{
-    proxima = !proxima;
-    document.documentElement.style.setProperty('--card-font',
-      proxima ? "'Proxima Nova','Inter','Helvetica Neue',Arial,sans-serif"
-              : "'Inter','Helvetica Neue',Arial,sans-serif");
-    fontToggle.textContent = proxima ? 'Proxima Nova' : 'Inter';
-  });
+  /* ---- Font dropdown: pick a professional typeface (loaded above) ---- */
+  const fontSelect = document.getElementById('fontSelect');
+  const FONT_FALLBACK = "'Helvetica Neue',Arial,sans-serif";
+  function applyFont(){
+    const stack = fontSelect.value + ',' + FONT_FALLBACK;
+    document.documentElement.style.setProperty('--card-font', stack);
+  }
+  fontSelect.addEventListener('change', applyFont);
+  applyFont();
 
   /* ---- Export exactly 1080×1080 PNG ---- */
   const downloadBtn = document.getElementById('downloadBtn');
